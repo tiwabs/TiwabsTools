@@ -1,7 +1,9 @@
 import bpy
 import bpy.utils.previews
 import os
-from bpy_extras.io_utils import ImportHelper
+
+import bmesh
+from mathutils import Vector
 
 bl_info = {
     "name": "Tiwabs Tools",
@@ -26,17 +28,15 @@ class TIWABS_PT_TOOLS(TiwabsTools, bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        
+
         transform_box = layout.box()
-        misc_tools = layout.box()
-        row = misc_tools.row()
-        row.operator(TIWABS_OT_PATH.bl_idname)
 
         obj = context.active_object
         if len(context.selected_objects) < 1 or not obj:
             transform_box.label(text="No object selected.", icon="ERROR")
         elif len(context.selected_objects) > 1:
             transform_box.label(text="You need to select only one object.", icon="ERROR")
+            misc_tools = layout.box()
             misc_tools.label(text="Misc Tools :")
             row = misc_tools.row()
             row.prop(context.scene, "offset_location", text="Offset ")
@@ -53,12 +53,6 @@ class TIWABS_PT_TOOLS(TiwabsTools, bpy.types.Panel):
             row.prop(context.scene, "object_contain_name", text="Contain ")
             row = misc_tools.row()
             row.operator(TIWABS_OT_CLEAR_PARENT.bl_idname)
-            row = misc_tools.row()
-            misc_tools.label(text="Asset Library :")
-            row = misc_tools.row()
-            row.prop(context.scene, "object_contain_name", text="Contain ")
-            row = misc_tools.row()
-            row.operator(TIWABS_OT_MARK_AS_ASSET.bl_idname)
         else:
             transform_box.label(text="Tranform options :")
             
@@ -71,6 +65,10 @@ class TIWABS_PT_TOOLS(TiwabsTools, bpy.types.Panel):
             row = transform_box.row()
             row.operator(TIWABS_OT_COPY_LOCATION.bl_idname)
             row.operator(TIWABS_OT_COPY_ROTATION.bl_idname)
+            row = transform_box.row()
+            row.prop(context.scene, "object_inertia", text="Inertia ")
+            row = transform_box.row()
+            row.prop(context.scene, "object_volume", text="Volume ")
 
             object_data_box = layout.box()
             object_data_box.label(text="Object data options :")
@@ -78,57 +76,20 @@ class TIWABS_PT_TOOLS(TiwabsTools, bpy.types.Panel):
             row.operator(TIWABS_OT_UVNAME.bl_idname)
             row.operator(TIWABS_OT_COLORNAME.bl_idname)
 
-            row = misc_tools.row()
-            misc_tools.label(text="Asset Library :")
-            row = misc_tools.row()
-            row.prop(context.scene, "object_contain_name", text="Contain ")
-            row = misc_tools.row()
-            row.operator(TIWABS_OT_MARK_AS_ASSET.bl_idname)
-            
+            lightProxy_box = layout.box()
+            lightProxy_box.label(text="Light proxy options :")
+            row = lightProxy_box.row()
+            row.prop(context.scene, "create_lightproxy_size", text="Size of triangle")
+            row = lightProxy_box.row()
+            row.prop(context.scene, "create_lightproxy_name", text="Name")
+            row = lightProxy_box.row()
+            row.operator(TIWABS_OT_CREATE_LIGHTPROXY.bl_idname)
+
             get_obj_name()
             get_obj_location()
             get_obj_rotation()
-
-def set_obj_name(self, value):
-    name = value
-    bpy.context.view_layer.objects.active.name = name
-
-def set_obj_location(self, value):
-    loc_x, loc_y, loc_z = map(float, value.split(", "))
-    bpy.context.view_layer.objects.active.location = (loc_x, loc_y, loc_z)
-
-def set_obj_rotation(self, value):
-    loc_x, loc_y, loc_z = map(float, value.split(", "))
-    bpy.context.view_layer.objects.active.location = (loc_x, loc_y, loc_z)
-
-def get_obj_name(__):
-    active_object = bpy.context.view_layer.objects.active
-    return str(active_object.name)
-    
-def get_obj_location(__):
-    active_object = bpy.context.view_layer.objects.active
-    loc_x = round(active_object.location.x, 3)
-    loc_y = round(active_object.location.y, 3)
-    loc_z = round(active_object.location.z, 3)
-    location = str(loc_x) + ", " + str(loc_y) + ", " + str(loc_z)
-    return str(location)
-
-def get_obj_rotation(__):
-    active_object = bpy.context.view_layer.objects.active
-
-    if active_object.rotation_mode == "XYZ" or active_object.rotation_mode == "XZY" or active_object.rotation_mode == "YXZ" or active_object.rotation_mode == "YZX" or active_object.rotation_mode == "ZXY" or active_object.rotation_mode == "ZYX" :
-        rot_x = round(active_object.rotation_euler.to_quaternion().x, 3)
-        rot_y = round(active_object.rotation_euler.to_quaternion().y, 3)
-        rot_z = round(active_object.rotation_euler.to_quaternion().z, 3)
-        rot_w = round(active_object.rotation_euler.to_quaternion().w, 3)
-    elif active_object.rotation_mode == "QUATERNION" :
-        rot_x = round(active_object.rotation_quaternion.x, 3)
-        rot_y = round(active_object.rotation_quaternion.y, 3)
-        rot_z = round(active_object.rotation_quaternion.z, 3)
-        rot_w = round(active_object.rotation_quaternion.w, 3)
-
-    rotation = str(rot_x) + ", " + str(rot_y) + ", " + str(rot_z) + ", " + str(rot_w)
-    return str(rotation)
+            get_obj_inertia()
+            get_obj_volume()
 
 class TIWABS_OT_COPY_LOCATION(bpy.types.Operator):
     """Copy selected object location (X,Y,Z)"""
@@ -253,31 +214,268 @@ class TIWABS_OT_CLEAR_PARENT(bpy.types.Operator):
                 bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
         return {"FINISHED"}
 
-class TIWABS_OT_MARK_AS_ASSET(bpy.types.Operator):
-    """Mark selected object as assets"""
-    bl_idname = "tiwabs.mark_as_assets"
-    bl_label = "Mark as assets"
-    bl_option = {"UNDO"}
+class TIWABS_OT_CALCULATE_INERTIA(bpy.types.Operator):
+    """Calculate inertia of selected object"""
+    bl_idname = "tiwabs.calculate_inertia"
+    bl_label = "Calculate Inertia"
 
     def execute(self, context):
         selected_object = context.selected_objects
-        contains = str(context.scene.object_contain_name)
         for obj in selected_object:
-            bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
-            if contains in obj.name:
-                obj.asset_mark()
-                obj.asset_generate_preview()
+            box_max = get_max_vector_list(obj.bound_box)
+            box_min = get_min_vector_list(obj.bound_box)
+            inertia = calculate_inertia(box_min, box_max)
+            print(inertia)
+            
         return {"FINISHED"}
 
-class TIWABS_OT_PATH(bpy.types.Operator, ImportHelper):
-    """Open a file browser and print the selected folder path to the console"""
-    bl_idname = "tiwabs.open_folder_button"
-    bl_label = "Open Folder"
+class TIWABS_OT_CALCULATE_VOLUME(bpy.types.Operator):
+    """Calculate volume of selected object"""
+    bl_idname = "tiwabs.calculate_volume"
+    bl_label = "Calculate Volume"
 
     def execute(self, context):
-        folderPath = os.path.dirname(self.filepath)
-        print(folderPath)
+        selected_object = context.selected_objects
+        for obj in selected_object:
+            box_max = get_max_vector_list(obj.bound_box)
+            box_min = get_min_vector_list(obj.bound_box)        
+            volume = calculate_volume(box_min, box_max)
+            print(volume)
+            
         return {"FINISHED"}
+
+class TIWABS_OT_CREATE_LIGHTPROXY(bpy.types.Operator):
+    """Create a light procy for the selected object"""
+    bl_idname = "tiwabs.create_lightproxy"
+    bl_label = "Create Light Proxy"
+
+    def execute(self, context):
+        active_object = bpy.context.active_object
+        size = float(context.scene.create_lightproxy_size)
+
+        min, max = get_bound_extents(active_object)
+        min_mesh = bpy.data.meshes.new(name="MinTriangle")
+        max_mesh = bpy.data.meshes.new(name="MaxTriangle")
+
+        min_verts = [Vector((min.x, min.y, min.z)), 
+                    Vector((min.x, max.y, min.z)), 
+                    Vector((max.x, min.y, min.z))]
+        max_verts = [Vector((max.x, max.y, max.z)), 
+                    Vector((max.x, min.y, max.z)), 
+                    Vector((min.x, max.y, max.z))]
+
+        edges = [(0, 1), (1, 2), (2, 0)]
+
+        min_faces = [(0, 1, 2)]
+        max_faces = [(0, 1, 2)]
+
+        min_obj = bpy.data.objects.new(name="MinTriangle", object_data=min_mesh)
+        max_obj = bpy.data.objects.new(name="MaxTriangle", object_data=max_mesh)
+        bpy.context.scene.collection.objects.link(min_obj)
+        bpy.context.scene.collection.objects.link(max_obj)
+
+        min_mesh.from_pydata(min_verts, edges, min_faces)
+        max_mesh.from_pydata(max_verts, edges, max_faces)
+
+        min_obj.scale = (size, size, size)
+        max_obj.scale = (size, size, size)
+
+        min_obj.location = min + Vector((0, 0, -0.2))
+        max_obj.location = max + Vector((0, 0, -0.2))
+
+        bpy.ops.object.select_all(action='DESELECT')
+
+        min_obj.select_set(True)
+        max_obj.select_set(True)
+        bpy.context.view_layer.objects.active = min_obj
+
+        bpy.ops.object.join()
+        if context.scene.create_lightproxy_name == "":
+            min_obj.name = active_object.name + "_lightproxy"
+        else:
+            min_obj.name = context.scene.create_lightproxy_name
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+        
+        return {"FINISHED"}
+
+def set_obj_name(self, value):
+    name = value
+    bpy.context.view_layer.objects.active.name = name
+
+def set_obj_location(self, value):
+    loc_x, loc_y, loc_z = map(float, value.split(", "))
+    bpy.context.view_layer.objects.active.location = (loc_x, loc_y, loc_z)
+
+def set_obj_rotation(self, value):
+    loc_x, loc_y, loc_z = map(float, value.split(", "))
+    bpy.context.view_layer.objects.active.location = (loc_x, loc_y, loc_z)
+
+def get_obj_name(arg = None):
+    active_object = bpy.context.view_layer.objects.active
+    return str(active_object.name)
+    
+def get_obj_location(arg = None):
+    active_object = bpy.context.view_layer.objects.active
+    loc_x = round(active_object.location.x, 3)
+    loc_y = round(active_object.location.y, 3)
+    loc_z = round(active_object.location.z, 3)
+    location = str(loc_x) + ", " + str(loc_y) + ", " + str(loc_z)
+    return str(location)
+
+def get_obj_rotation(arg = None):
+    active_object = bpy.context.view_layer.objects.active
+
+    if active_object.rotation_mode == "XYZ" or active_object.rotation_mode == "XZY" or active_object.rotation_mode == "YXZ" or active_object.rotation_mode == "YZX" or active_object.rotation_mode == "ZXY" or active_object.rotation_mode == "ZYX" :
+        rot_x = round(active_object.rotation_euler.to_quaternion().x, 3)
+        rot_y = round(active_object.rotation_euler.to_quaternion().y, 3)
+        rot_z = round(active_object.rotation_euler.to_quaternion().z, 3)
+        rot_w = round(active_object.rotation_euler.to_quaternion().w, 3)
+    elif active_object.rotation_mode == "QUATERNION" :
+        rot_x = round(active_object.rotation_quaternion.x, 3)
+        rot_y = round(active_object.rotation_quaternion.y, 3)
+        rot_z = round(active_object.rotation_quaternion.z, 3)
+        rot_w = round(active_object.rotation_quaternion.w, 3)
+
+    rotation = str(rot_x) + ", " + str(rot_y) + ", " + str(rot_z) + ", " + str(rot_w)
+    return str(rotation)
+
+def get_obj_inertia(arg = None):
+    active_object = bpy.context.view_layer.objects.active
+    box_max = get_max_vector_list(active_object.bound_box)
+    box_min = get_min_vector_list(active_object.bound_box)
+    inertia = calculate_inertia(box_min, box_max)
+    inertia_ = str(round(inertia[0], 3)) + ", " + str(round(inertia[1], 3)) + ", " + str(round(inertia[2], 3))
+    return str(inertia_)
+
+def get_obj_volume(arg = None):
+    active_object = bpy.context.view_layer.objects.active
+    box_max = get_max_vector_list(active_object.bound_box)
+    box_min = get_min_vector_list(active_object.bound_box)
+    volume = calculate_volume(box_min, box_max)
+    return str(round(volume, 3))
+
+def get_min_vector_list(vecs):
+    x = []
+    y = []
+    z = []
+    for v in vecs:
+        x.append(v[0])
+        y.append(v[1])
+        z.append(v[2])
+    return Vector((min(x), min(y), min(z)))
+
+def get_max_vector_list(vecs):
+    x = []
+    y = []
+    z = []
+    for v in vecs:
+        x.append(v[0])
+        y.append(v[1])
+        z.append(v[2])
+    return Vector((max(x), max(y), max(z)))
+
+def get_dimensions(bbmin, bbmax):
+    x = bbmax.x - bbmin.x
+    y = bbmax.y - bbmin.y
+    z = bbmax.z - bbmin.z
+
+    return x, y, z
+
+def calculate_volume(bbmin, bbmax):
+    x, y, z = get_dimensions(bbmin, bbmax)
+
+    return x * y * z
+
+def calculate_inertia(bbmin, bbmax):
+    x, y, z = get_dimensions(bbmin, bbmax)
+
+    I_h = (1/12) * (pow(y, 2) + pow(z, 2))
+    I_w = (1/12) * (pow(z, 2) + pow(x, 2))
+    I_d = (1/12) * (pow(y, 2) + pow(x, 2))
+
+    # Gta props using this values ( y, x, z )
+    return Vector((I_h, I_w, I_d))
+
+    # maybe x= I_w, y= I_h, z= I_d
+    # return Vector((I_w, I_h, I_d))
+
+## LightProxy
+
+def subtract_from_vector(v, f):
+    r = Vector((0, 0, 0))
+    r.x = v.x - f
+    r.y = v.y - f
+    r.z = v.z - f
+    return r
+
+def add_to_vector(v, f):
+    r = Vector((0, 0, 0))
+    r.x = v.x + f
+    r.y = v.y + f
+    r.z = v.z + f
+    return r
+
+def get_min_vector_list(vecs):
+    x = []
+    y = []
+    z = []
+    for v in vecs:
+        x.append(v[0])
+        y.append(v[1])
+        z.append(v[2])
+    return Vector((min(x), min(y), min(z)))
+
+def get_max_vector_list(vecs):
+    x = []
+    y = []
+    z = []
+    for v in vecs:
+        x.append(v[0])
+        y.append(v[1])
+        z.append(v[2])
+    return Vector((max(x), max(y), max(z)))
+
+def get_bound_extents(obj, margin=0):
+    corners = get_total_bounds(obj)
+
+    if not corners:
+        return Vector(), Vector()
+
+    min = subtract_from_vector(get_min_vector_list(corners), margin)
+    max = add_to_vector(get_max_vector_list(corners), margin)
+    return min, max
+
+def get_total_bounds(obj):
+    corners = []
+    
+    for child in [obj, *get_children_recursive(obj)]:
+        if child.type != "MESH":
+            continue
+
+        matrix = child.matrix_basis
+
+        corners.extend([matrix @ Vector(pos)
+                       for pos in child.bound_box])
+
+    return corners
+
+def get_children_recursive(obj) -> list[bpy.types.Object]:
+    children = []
+
+    if obj is None:
+        return children
+
+    if len(obj.children) < 1:
+        return children
+
+    for child in obj.children:
+        children.append(child)
+        if len(child.children) > 0:
+            children.extend(get_children_recursive(child))
+
+    return children
+
+## End LightProxy
 
 classes = (
     TIWABS_PT_TOOLS,
@@ -287,8 +485,9 @@ classes = (
     TIWABS_OT_COLORNAME,
     TIWABS_OT_OFFSET_LOCATION,
     TIWABS_OT_CLEAR_PARENT,
-    TIWABS_OT_MARK_AS_ASSET,
-    TIWABS_OT_PATH
+    TIWABS_OT_CALCULATE_INERTIA,
+    TIWABS_OT_CALCULATE_VOLUME,
+    TIWABS_OT_CREATE_LIGHTPROXY
 )
 
 def register():
@@ -331,6 +530,28 @@ def register():
         default="#dr", 
         description="The mesh contain a specific name",
         maxlen=50)
+    bpy.types.Scene.object_inertia = bpy.props.StringProperty(
+        name="",
+        default="0, 0, 0", 
+        description="The mesh contain a specific name",
+        maxlen=150,
+        get=get_obj_inertia)
+    bpy.types.Scene.object_volume = bpy.props.StringProperty(
+        name="",
+        default="0, 0, 0",
+        description="Volume of active object",
+        maxlen=150,
+        get=get_obj_volume)
+    bpy.types.Scene.create_lightproxy_size = bpy.props.StringProperty(
+        name="",
+        default="0.01",
+        description="Size of the triangles for the light proxy",
+        maxlen=150)
+    bpy.types.Scene.create_lightproxy_name = bpy.props.StringProperty(
+        name="",
+        default="",
+        description="Name of your light proxy, if not set, the name will be the same as the object + _lightproxy",
+        maxlen=150)
 
 def unregister():
     for cls in classes:
@@ -343,7 +564,7 @@ def unregister():
     del bpy.types.Scene.offset_axis_Y
     del bpy.types.Scene.offset_axis_Z
     del bpy.types.Scene.object_contain_name
-
+    del bpy.types.Scene.create_lightproxy_size
 
 if __name__ == "__main__":
     register()
