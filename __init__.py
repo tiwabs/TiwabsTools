@@ -1,3 +1,4 @@
+from enum import Enum
 import bpy
 import bpy.utils.previews
 import os
@@ -34,8 +35,7 @@ class TIWABS_PT_TOOLS(TiwabsTools, bpy.types.Panel):
         obj = context.active_object
         if len(context.selected_objects) < 1 or not obj:
             transform_box.label(text="No object selected.", icon="ERROR")
-        elif len(context.selected_objects) > 1:
-            transform_box.label(text="You need to select only one object.", icon="ERROR")
+        else:
             misc_tools = layout.box()
             misc_tools.label(text="Misc Tools :")
             row = misc_tools.row()
@@ -53,7 +53,6 @@ class TIWABS_PT_TOOLS(TiwabsTools, bpy.types.Panel):
             row.prop(context.scene, "object_contain_name", text="Contain ")
             row = misc_tools.row()
             row.operator(TIWABS_OT_CLEAR_PARENT.bl_idname)
-        else:
             transform_box.label(text="Tranform options :")
             
             row = transform_box.row()
@@ -84,6 +83,28 @@ class TIWABS_PT_TOOLS(TiwabsTools, bpy.types.Panel):
             row.prop(context.scene, "create_lightproxy_name", text="Name")
             row = lightProxy_box.row()
             row.operator(TIWABS_OT_CREATE_LIGHTPROXY.bl_idname)
+
+            YMAP_box = layout.box()
+            YMAP_box.label(text="YMAP options :")
+            row = YMAP_box.row()
+            row.prop(context.scene, "set_ymap_entities_flag", text="Flag")
+            row.operator(TIWABS_OT_SET_ENTITIES_FLAG.bl_idname)
+            row = YMAP_box.row()
+            row.prop(context.scene, "set_ymap_entities_lod", text="Lod")
+            row.operator(TIWABS_OT_SET_ENTITIES_LOD.bl_idname)
+            row = YMAP_box.row()
+            row.prop(context.scene, "set_ymap_entities_child_lod", text="Child lod")
+            row.operator(TIWABS_OT_SET_ENTITIES_CHILD_LOD.bl_idname)
+            row = YMAP_box.row()
+            row.prop(context.scene, "set_ymap_parent_index", text="Parent index")
+            row.operator(TIWABS_OT_SET_PARENT_INDEX.bl_idname)
+            row = YMAP_box.row()
+            row.prop(context.scene, "set_ymap_entities_number_child", text="Number of children")
+            row.operator(TIWABS_OT_SET_ENTITIES_NUMBER_CHILD.bl_idname)
+            row = YMAP_box.row()
+            row.prop(context.scene, "set_ymap_entities_lod_level", text="Lod level")
+            row = YMAP_box.row()
+            row.prop(context.scene, "set_ymap_entities_pri_level", text="Priority level")
 
             get_obj_name()
             get_obj_location()
@@ -297,6 +318,98 @@ class TIWABS_OT_CREATE_LIGHTPROXY(bpy.types.Operator):
         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
         
         return {"FINISHED"}
+    
+class TIWABS_OT_SET_ENTITIES_FLAG(bpy.types.Operator):
+    """Set entities flag for the selected object"""
+    bl_idname = "tiwabs.set_entities_flag"
+    bl_label = "Set Entities Flag"
+
+    def execute(self, context):
+        for obj in bpy.context.selected_objects:
+            obj.entity_properties.flags = int(context.scene.set_ymap_entities_flag)
+        return {"FINISHED"}
+    
+class TIWABS_OT_SET_ENTITIES_LOD(bpy.types.Operator):
+    """Set entities LOD for the selected object"""
+    bl_idname = "tiwabs.set_entities_lod"
+    bl_label = "Set Entities LOD"
+
+    def execute(self, context):
+        for obj in bpy.context.selected_objects:
+            obj.entity_properties.lod_dist = float(context.scene.set_ymap_entities_lod)
+        return {"FINISHED"}
+    
+class TIWABS_OT_SET_PARENT_INDEX(bpy.types.Operator):
+    """Set entities parent index for the selected object"""
+    bl_idname = "tiwabs.set_parent_index"
+    bl_label = "Set parent index"
+
+    def execute(self, context):
+        for obj in bpy.context.selected_objects:
+            obj.entity_properties.parent_index = int(context.scene.set_ymap_parent_index)
+        return {"FINISHED"}
+    
+class TIWABS_OT_SET_ENTITIES_CHILD_LOD(bpy.types.Operator):
+    """Set entities child lod index for the selected object"""
+    bl_idname = "tiwabs.set_entities_child_lod"
+    bl_label = "Set child lod"
+
+    def execute(self, context):
+        for obj in bpy.context.selected_objects:
+            obj.entity_properties.child_lod_dist = float(context.scene.set_ymap_entities_child_lod)
+        return {"FINISHED"}
+    
+class TIWABS_OT_SET_ENTITIES_NUMBER_CHILD(bpy.types.Operator):
+    """Set entities number of child for the selected object"""
+    bl_idname = "tiwabs.set_entities_number_child"
+    bl_label = "Set number of child"
+
+    def execute(self, context):
+        for obj in bpy.context.selected_objects:
+            obj.entity_properties.num_children = int(context.scene.set_ymap_entities_number_child)
+        return {"FINISHED"}
+    
+class TIWABS_LOD_PRESETS(str, Enum):
+    LODTYPES_DEPTH_HD = "sollumz_lodtypes_depth_hd"
+    LODTYPES_DEPTH_LOD = "sollumz_lodtypes_depth_lod"
+    LODTYPES_DEPTH_SLOD1 = "sollumz_lodtypes_depth_slod1"
+    LODTYPES_DEPTH_SLOD2 = "sollumz_lodtypes_depth_slod2"
+    LODTYPES_DEPTH_SLOD3 = "sollumz_lodtypes_depth_slod3"
+    LODTYPES_DEPTH_SLOD4 = "sollumz_lodtypes_depth_slod4"
+    LODTYPES_DEPTH_ORPHANHD = "sollumz_lodtypes_depth_orphanhd"
+
+class TIWABS_PRI_LEVELS(str, Enum):
+    PRI_REQUIRED = "sollumz_pri_required"
+    PRI_OPTIONAL_HIGH = "sollumz_pri_optional_high"
+    PRI_OPTIONAL_MEDIUM = "sollumz_pri_optional_medium"
+    PRI_OPTIONAL_LOW = "sollumz_pri_optional_low"
+
+TIWABS_UI_NAMES = {
+    TIWABS_LOD_PRESETS.LODTYPES_DEPTH_HD: "DEPTH HD",
+    TIWABS_LOD_PRESETS.LODTYPES_DEPTH_LOD: "DEPTH LOD",
+    TIWABS_LOD_PRESETS.LODTYPES_DEPTH_SLOD1: "DEPTH SLOD1",
+    TIWABS_LOD_PRESETS.LODTYPES_DEPTH_SLOD2: "DEPTH SLOD2",
+    TIWABS_LOD_PRESETS.LODTYPES_DEPTH_SLOD3: "DEPTH SLOD3",
+    TIWABS_LOD_PRESETS.LODTYPES_DEPTH_SLOD4: "DEPTH SLOD4",
+    TIWABS_LOD_PRESETS.LODTYPES_DEPTH_ORPHANHD: "DEPTH ORPHAN HD",
+    
+    TIWABS_PRI_LEVELS.PRI_REQUIRED: "REQUIRED",
+    TIWABS_PRI_LEVELS.PRI_OPTIONAL_HIGH: "OPTIONAL HIGH",
+    TIWABS_PRI_LEVELS.PRI_OPTIONAL_MEDIUM: "OPTIONAL MEDIUM",
+    TIWABS_PRI_LEVELS.PRI_OPTIONAL_LOW: "OPTIONAL LOW",
+}
+
+# Generate items from provided enums
+def items_from_enums(*enums):
+    items = []
+    for enum in enums:
+        for item in enum:
+            if item not in TIWABS_UI_NAMES:
+                raise KeyError(
+                    f"UI name mapping not found for key {item} of {enum}.")
+            items.append(
+                (item.value, TIWABS_UI_NAMES[item], ""))
+    return items
 
 def set_obj_name(self, value):
     name = value
@@ -477,6 +590,14 @@ def get_children_recursive(obj) -> list[bpy.types.Object]:
 
 ## End LightProxy
 
+def update_lod_level(self, context):
+    for obj in context.selected_objects:
+        obj.entity_properties.lod_level = self.set_ymap_entities_lod_level
+
+def update_priority_level(self, context):
+    for obj in context.selected_objects:
+        obj.entity_properties.priority_level = self.set_ymap_entities_pri_level
+
 classes = (
     TIWABS_PT_TOOLS,
     TIWABS_OT_COPY_LOCATION,
@@ -487,7 +608,12 @@ classes = (
     TIWABS_OT_CLEAR_PARENT,
     TIWABS_OT_CALCULATE_INERTIA,
     TIWABS_OT_CALCULATE_VOLUME,
-    TIWABS_OT_CREATE_LIGHTPROXY
+    TIWABS_OT_CREATE_LIGHTPROXY,
+    TIWABS_OT_SET_ENTITIES_FLAG,
+    TIWABS_OT_SET_ENTITIES_LOD,
+    TIWABS_OT_SET_PARENT_INDEX,
+    TIWABS_OT_SET_ENTITIES_CHILD_LOD,
+    TIWABS_OT_SET_ENTITIES_NUMBER_CHILD
 )
 
 def register():
@@ -552,6 +678,45 @@ def register():
         default="",
         description="Name of your light proxy, if not set, the name will be the same as the object + _lightproxy",
         maxlen=150)
+    bpy.types.Scene.set_ymap_entities_flag = bpy.props.StringProperty(
+        name="",
+        default="32",
+        description="Flag for selected entities",
+        maxlen=150)
+    bpy.types.Scene.set_ymap_entities_lod = bpy.props.StringProperty(
+        name="",
+        default="100",
+        description="Lod Dist for selected entities",
+        maxlen=150)
+    bpy.types.Scene.set_ymap_parent_index = bpy.props.StringProperty(
+        name="",
+        default="-1",
+        description="Parent Index for selected entities",
+        maxlen=150)
+    bpy.types.Scene.set_ymap_entities_child_lod = bpy.props.StringProperty(
+        name="",
+        default="0.0",
+        description="Child lod distance for selected entities",
+        maxlen=150)
+    bpy.types.Scene.set_ymap_entities_number_child = bpy.props.StringProperty(
+        name="",
+        default="0",
+        description="Number of children for selected entities",
+        maxlen=150)
+    bpy.types.Scene.set_ymap_entities_lod_level = bpy.props.EnumProperty(
+        items=items_from_enums(TIWABS_LOD_PRESETS),
+        name="Lod Level",
+        default=TIWABS_LOD_PRESETS.LODTYPES_DEPTH_ORPHANHD,
+        options={"HIDDEN"},
+        update=update_lod_level
+    )
+    bpy.types.Scene.set_ymap_entities_pri_level = bpy.props.EnumProperty(
+        items=items_from_enums(TIWABS_PRI_LEVELS),
+        name="Priority Level",
+        default=TIWABS_PRI_LEVELS.PRI_REQUIRED,
+        options={"HIDDEN"},
+        update=update_priority_level
+    )
 
 def unregister():
     for cls in classes:
@@ -565,6 +730,13 @@ def unregister():
     del bpy.types.Scene.offset_axis_Z
     del bpy.types.Scene.object_contain_name
     del bpy.types.Scene.create_lightproxy_size
+    del bpy.types.Scene.set_ymap_entities_flag
+    del bpy.types.Scene.set_ymap_entities_lod
+    del bpy.types.Scene.set_ymap_entities_child_lod
+    del bpy.types.Scene.set_ymap_entities_number_child
+    del bpy.types.Scene.set_ymap_parent_index
+    del bpy.types.Scene.set_ymap_entities_lod_level
+    del bpy.types.Scene.set_ymap_entities_pri_level
 
 if __name__ == "__main__":
     register()
