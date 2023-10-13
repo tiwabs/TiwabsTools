@@ -153,30 +153,32 @@ class TIWABS_OT_COPY_ROTATION(bpy.types.Operator):
         os.system(command)
         self.report({"INFO"}, f"Rotation of " + active_object.name + " have been copied to the clipboard")
         return {"FINISHED"}
-        
+
 class TIWABS_OT_UVNAME(bpy.types.Operator):
     """Change UV Name to match with sollumz"""
     bl_idname = "tiwabs.uv_name"
     bl_label = "UV Name"
 
-    def execute(self, context):        
-        active_object = context.active_object
+    def execute(self, context):
+        selected_objects = context.selected_objects
 
-        count = -1
-        if len(active_object.data.uv_layers) > 0:
-            for uvmap in active_object.data.uv_layers:
-                count = count + 1
-                uvmap.name = "texcoord" + str(count)
-        else:
-            active_object.data.uv_layers.new(name="texcoord0")
+        for obj in selected_objects:
+            count = -1
+            if len(obj.data.uv_layers) > 0:
+                for uvmap in obj.data.uv_layers:
+                    count = count + 1
+                    uvmap.name = "UVMap " + str(count)
+            else:
+                obj.data.uv_layers.new(name="UVMap 0")
+
         return {"FINISHED"}
-        
+
 class TIWABS_OT_COLORNAME(bpy.types.Operator):
     """Change Color attribute Name to match with sollumz"""
     bl_idname = "tiwabs.color_name"
     bl_label = "Color Name"
 
-    def execute(self, context):        
+    def execute(self, context):
         active_object = context.active_object
 
         count = -1
